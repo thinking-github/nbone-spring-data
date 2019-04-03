@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:elasticsearch="http://www.springframework.org/schema/data/elasticsearch"
+       xsi:schemaLocation="http://www.springframework.org/schema/data/elasticsearch http://www.springframework.org/schema/data/elasticsearch/spring-elasticsearch-1.0.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd">
+
+    <!--120.92.81.174:7301 -->
+    <elasticsearch:transport-client id="client" cluster-name="es-chainnova"
+                                    cluster-nodes="120.92.83.165:7301,120.92.109.71:7301"
+                                    client-transport-sniff="false"/>
+
+    <!--<elasticsearch:transport-client id="client" cluster-name="elasticsearch" cluster-nodes="127.0.0.1:9300"/>-->
+    <bean name="elasticsearchTemplate" class="org.nbone.spring.data.elasticsearch.core.ElasticsearchTemplate">
+        <constructor-arg name="client" ref="client"/>
+         <property name="supportSql" value="true"/>
+    </bean>
+
+
+
+
+    <elasticsearch:repositories base-package="org.springframework.data.elasticsearch.repositories" />
+
+</beans>

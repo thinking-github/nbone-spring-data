@@ -10,6 +10,7 @@
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>nbone-data-elasticsearch</module>
+        <module>nbone-data-redis</module>
     </modules>
 
 

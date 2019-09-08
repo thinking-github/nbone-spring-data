@@ -5,25 +5,25 @@ import org.springframework.data.redis.core.RedisOperations;
 import java.util.Collection;
 
 /**
- * @author thinking
+ * @author chenyicheng
  * @version 1.0
- * @since 2019-09-03
+ * @since 2019-09-07
  */
-public class RedisCacheManagerX extends RedisCacheManager {
+public class RedisHashManager extends RedisCacheManager {
 
     private final boolean cacheNullValues;
 
-    public RedisCacheManagerX(RedisOperations redisOperations) {
+    public RedisHashManager(RedisOperations redisOperations) {
         super(redisOperations);
         this.cacheNullValues = false;
     }
 
-    public RedisCacheManagerX(RedisOperations redisOperations, Collection<String> cacheNames) {
+    public RedisHashManager(RedisOperations redisOperations, Collection<String> cacheNames) {
         super(redisOperations, cacheNames);
         this.cacheNullValues = false;
     }
 
-    public RedisCacheManagerX(RedisOperations redisOperations, Collection<String> cacheNames, boolean cacheNullValues) {
+    public RedisHashManager(RedisOperations redisOperations, Collection<String> cacheNames, boolean cacheNullValues) {
         super(redisOperations, cacheNames, cacheNullValues);
         this.cacheNullValues = cacheNullValues;
     }
@@ -34,6 +34,6 @@ public class RedisCacheManagerX extends RedisCacheManager {
     protected RedisCache createCache(String cacheName) {
         long expiration = computeExpiration(cacheName);
         String prefix = (isUsePrefix() ? cacheName : null);
-        return new RedisCacheX(cacheName, prefix, getRedisOperations(), expiration, cacheNullValues);
+        return new RedisHashCache(cacheName, prefix, getRedisOperations(), expiration, cacheNullValues);
     }
 }

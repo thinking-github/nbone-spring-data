@@ -51,40 +51,32 @@ import org.springframework.util.ClassUtils;
 @SuppressWarnings("unchecked")
 public class RedisCacheX extends RedisCache {
 
+    private String cacheName;
+    private String prefix;
+
     @SuppressWarnings("rawtypes") //
     private final RedisOperations redisOperations;
     private final RedisCacheMetadata cacheMetadata;
     private final CacheValueAccessor cacheValueAccessor;
 
-    /**
-     * Constructs a new {@link RedisCache} instance.
-     *
-     * @param name            cache name
-     * @param prefix
-     * @param redisOperations
-     * @param expiration
-     */
-    public RedisCacheX(String name, byte[] prefix, RedisOperations<? extends Object, ? extends Object> redisOperations,
+
+    public RedisCacheX(String name, String prefix, RedisOperations<? extends Object, ? extends Object> redisOperations,
                        long expiration) {
         this(name, prefix, redisOperations, expiration, false);
     }
 
-    /**
-     * Constructs a new {@link RedisCache} instance.
-     *
-     * @param name            cache name
-     * @param prefix          must not be {@literal null} or empty.
-     * @param redisOperations
-     * @param expiration
-     * @param allowNullValues
-     * @since 1.8
-     */
-    public RedisCacheX(String name, byte[] prefix, RedisOperations<? extends Object, ? extends Object> redisOperations,
+
+    public RedisCacheX(String name, String prefix, RedisOperations<? extends Object, ? extends Object> redisOperations,
                        long expiration, boolean allowNullValues) {
 
-        super(name, prefix, redisOperations, expiration, allowNullValues);
+        this(name, prefix != null ? RedisUtils.DEFAULT_STRING_SERIALIZER.serialize(prefix.concat(":")) : null,
+                redisOperations, expiration, allowNullValues);
+        this.cacheName = name;
+        this.prefix = prefix;
+    }
 
-        Assert.hasText(name, "CacheName must not be null or empty!");
+    private RedisCacheX(String name, byte[] prefix, RedisOperations<?, ?> redisOperations, long expiration, boolean allowNullValues) {
+        super(name, prefix, redisOperations, expiration, allowNullValues);
 
         RedisSerializer<?> serializer = redisOperations.getValueSerializer() != null ? redisOperations.getValueSerializer()
                 : (RedisSerializer<?>) new JdkSerializationRedisSerializer();
@@ -93,20 +85,37 @@ public class RedisCacheX extends RedisCache {
         this.cacheMetadata.setDefaultExpiration(expiration);
         this.redisOperations = redisOperations;
         this.cacheValueAccessor = new CacheValueAccessor(serializer);
+    }
 
-        if (allowNullValues) {
+    // new add thinking
+    public RedisOperations getRedisOperations() {
+        return redisOperations;
+    }
 
-            if (redisOperations.getValueSerializer() instanceof StringRedisSerializer
-                    || redisOperations.getValueSerializer() instanceof GenericToStringSerializer
-                    || redisOperations.getValueSerializer() instanceof JacksonJsonRedisSerializer
-                    || redisOperations.getValueSerializer() instanceof Jackson2JsonRedisSerializer) {
-                throw new IllegalArgumentException(String.format(
-                        "Redis does not allow keys with null value ¯\\_(ツ)_/¯. "
-                                + "The chosen %s does not support generic type handling and therefore cannot be used with allowNullValues enabled. "
-                                + "Please use a different RedisSerializer or disable null value support.",
-                        ClassUtils.getShortName(redisOperations.getValueSerializer().getClass())));
-            }
-        }
+    // new add thinking
+    protected RedisCacheMetadata getCacheMetadata() {
+        return cacheMetadata;
+    }
+
+    public String getPrefix() {
+        return prefix;
+    }
+
+    public boolean usesKeyPrefix() {
+        return (prefix != null && prefix.length() > 0);
+    }
+    public boolean hasKeyPrefix(){
+        return usesKeyPrefix();
+    }
+    public boolean isEternal() {
+        return 0 == cacheMetadata.getDefaultExpiration();
+    }
+    public long getTimeToLive() {
+        return cacheMetadata.getDefaultExpiration();
+    }
+
+    public String prefixNamespace() {
+        return prefix.concat(":");
     }
 
     /**
@@ -518,7 +527,7 @@ public class RedisCacheX extends RedisCache {
 
         public BinaryRedisCacheElement(RedisCacheElementX element, CacheValueAccessor accessor) {
 
-            super(element.getPrefix(), element.getKeyElement(), element.get(),element.getKeySerializer());
+            super(element.getPrefix(), element.getKeyElement(), element.get(), element.getKeySerializer());
             this.element = element;
             this.keyBytes = element.getKeyBytes();
             this.accessor = accessor;

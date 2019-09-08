@@ -7,7 +7,7 @@
     <groupId>org.nbone.spring.data</groupId>
     <artifactId>nbone-spring-data</artifactId>
     <packaging>pom</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <modules>
         <module>nbone-data-elasticsearch</module>
         <module>nbone-data-redis</module>

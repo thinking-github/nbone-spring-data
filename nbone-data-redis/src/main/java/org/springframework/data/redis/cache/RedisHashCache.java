@@ -2,6 +2,7 @@ package org.springframework.data.redis.cache;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.RedisHashKey;
 import org.springframework.cache.support.SimpleValueWrapper;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.DecoratedRedisConnection;
@@ -27,6 +28,10 @@ public class RedisHashCache extends RedisCacheX {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisHashCache.class);
     public static final String FIELD_REFERENCE = "@";
+    public static final Class<?> RETURN_TYPE_MAP = Map.class;
+    public static final Class<?> RETURN_TYPE_COLLECTION = Collection.class;
+    public static final Class<?> RETURN_TYPE_ARRAY = Object[].class;
+
 
     private final RedisOperations redisOperations;
 
@@ -62,13 +67,25 @@ public class RedisHashCache extends RedisCacheX {
 
     @Override
     protected Object lookup(Object key) {
-        Object[] keys = keys(key);
-        if (keys.length == 1) {
-            return hashValues(keys[0]);
-        } else if (keys.length == 2 && containsFieldReference(keys[1])) {
-            return hashValues(keys[0]);
+        RedisHashKey redisHashKey = redisHashKey(key);
+        if (redisHashKey.getHashKeys() != null) {
+            return hashMultiGet(redisHashKey.getKey(), redisHashKey.getHashKeys());
+        } else if (redisHashKey.getHashKey() == null || containsFieldReference(redisHashKey.getHashKey())) {
+            if (redisHashKey.isHasContext()) {
+                if (redisHashKey.isReturnTypeMap()) {
+                    return hashEntries(redisHashKey.getKey());
+                } else if (redisHashKey.isReturnTypeList()) {
+                    return hashValues(redisHashKey.getKey());
+                } else if (redisHashKey.isReturnTypeArray()) {
+                    return hashValues(redisHashKey.getKey()).toArray();
+                } else {
+                    return hashValues(redisHashKey.getKey());
+                }
+            } else {
+                return hashValues(redisHashKey.getKey());
+            }
         }
-        return hashGet(keys[0], keys[1]);
+        return hashGet(redisHashKey.getKey(), redisHashKey.getHashKey());
     }
 
     @Override
@@ -107,22 +124,22 @@ public class RedisHashCache extends RedisCacheX {
         if (value == null) {
             return;
         }
-        Object[] keys = keys(key);
+        RedisHashKey redisHashKey = redisHashKey(key);
         if (value instanceof Map) {
-            hashPutAll(keys[0], (Map<Object, Object>) value);
+            hashPutAll(redisHashKey.getKey(), (Map<Object, Object>) value);
         } else {
             if (value instanceof Collection || value.getClass().isArray()) {
                 Map<Object, Object> hashMap = null;
-                if (keys.length == 2) {
-                    String hashKeyField = processFieldReference(keys[1]);
+                if (redisHashKey.getHashKey() != null) {
+                    String hashKeyField = processFieldReference(redisHashKey.getHashKey());
                     hashMap = collectionArray2Map(value, hashKeyField);
                 } else {
                     throw new IllegalArgumentException("redis hash key '" + key + "' invalid, example set= cut:classify:material,id");
                 }
-                hashPutAll(keys[0], hashMap);
+                hashPutAll(redisHashKey.getKey(), hashMap);
 
             } else {
-                hashPut(keys[0], keys[1], value);
+                hashPut(redisHashKey.getKey(), redisHashKey.getHashKey(), value);
             }
 
         }
@@ -131,9 +148,9 @@ public class RedisHashCache extends RedisCacheX {
 
     @Override
     public ValueWrapper putIfAbsent(Object key, Object value) {
-        Object[] keys = keys(key);
-        Boolean bool = hashPutIfAbsent(keys[0], keys[1], value);
-        return bool ? null : toWrapper(hashGet(keys[0], keys[1]));
+        RedisHashKey redisHashKey = redisHashKey(key);
+        Boolean bool = hashPutIfAbsent(redisHashKey.getKey(), redisHashKey.getHashKey(), value);
+        return bool ? null : toWrapper(hashGet(redisHashKey.getKey(), redisHashKey.getHashKey()));
     }
 
     private ValueWrapper toWrapper(Object value) {
@@ -142,12 +159,17 @@ public class RedisHashCache extends RedisCacheX {
 
     @Override
     public void evict(Object key) {
-        Object[] keys = keys(key);
-        if (keys.length == 1) {
-            delete(keys[0]);
+        RedisHashKey redisHashKey = redisHashKey(key);
+
+        if (redisHashKey.getHashKeys() != null) {
+            redisOperations.opsForHash().delete(redisHashKey.getKey(), redisHashKey.getHashKeys().toArray());
+        } else if (redisHashKey.getHashKey() == null || containsFieldReference(redisHashKey.getHashKey())) {
+
+            delete(redisHashKey.getKey());
             return;
         }
-        redisOperations.opsForHash().delete(keys[0], keys[1]);
+
+        redisOperations.opsForHash().delete(redisHashKey.getKey(), redisHashKey.getHashKeys());
     }
 
     @Override
@@ -185,6 +207,14 @@ public class RedisHashCache extends RedisCacheX {
 
     private <T> List<T> hashValues(Object key) {
         return redisOperations.opsForHash().values(key);
+    }
+
+    private <K, V> Map<K, V> hashEntries(Object key) {
+        return redisOperations.opsForHash().entries(key);
+    }
+
+    private <T> List<T> hashMultiGet(Object key, Collection<?> fields) {
+        return redisOperations.opsForHash().multiGet(key, fields);
     }
 
     private Object hashGet(Object key, Object hashKey) {
@@ -323,16 +353,26 @@ public class RedisHashCache extends RedisCacheX {
      * @param key
      * @return
      */
-    private Object[] keys(Object key) {
+    private RedisHashKey redisHashKey(Object key) {
+        if (key instanceof RedisHashKey) {
+            RedisHashKey redisHashKey = (RedisHashKey) key;
+            if (usesKeyPrefix()) {
+                redisHashKey.setKey(prefixNamespace() + redisHashKey.getKey());
+            }
+            return redisHashKey;
+        }
+
         Object keyUsed = key;
         if (usesKeyPrefix()) {
             keyUsed = prefixNamespace() + key;
         }
+        //thinking:classify:packageName,12,13,15
         if (keyUsed instanceof String) {
-            return StringUtils.commaDelimitedListToStringArray((String) keyUsed);
+            //String[] keys = StringUtils.commaDelimitedListToStringArray((String) keyUsed);
+            return new RedisHashKey((String) keyUsed);
         }
 
-        return new Object[]{keyUsed};
+        return new RedisHashKey(key, null);
     }
 
 }

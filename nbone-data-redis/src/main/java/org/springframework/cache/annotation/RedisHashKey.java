@@ -50,6 +50,13 @@ public class RedisHashKey implements Serializable {
         this.hasContext = method != null ? true : false;
     }
 
+    /**
+     * <li>thinking:classify:packageName,12
+     * <li>thinking:classify:packageName,12,13,15
+     * <li>thinking:classify:packageName,@id
+     *
+     * @param compositeKey composite Key
+     */
     public RedisHashKey(String compositeKey) {
         String[] keys = StringUtils.commaDelimitedListToStringArray(compositeKey);
         if (keys.length == 1) {

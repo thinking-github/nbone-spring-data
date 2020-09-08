@@ -28,12 +28,9 @@ public class RedisHashCache extends RedisCacheX {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisHashCache.class);
     public static final String FIELD_REFERENCE = "@";
-    public static final Class<?> RETURN_TYPE_MAP = Map.class;
-    public static final Class<?> RETURN_TYPE_COLLECTION = Collection.class;
-    public static final Class<?> RETURN_TYPE_ARRAY = Object[].class;
-
 
     private final RedisOperations redisOperations;
+    private Class<?> hashKeyType;
 
 
     public RedisHashCache(String name, String prefix, RedisOperations<? extends Object, ? extends Object> redisOperations,
@@ -54,6 +51,10 @@ public class RedisHashCache extends RedisCacheX {
 
     }
 
+    public RedisHashCache hashKeyType(Class<?> hashKeyType) {
+        this.hashKeyType = hashKeyType;
+        return this;
+    }
 
     @Override
     public String getName() {
@@ -366,6 +367,7 @@ public class RedisHashCache extends RedisCacheX {
         if (usesKeyPrefix()) {
             keyUsed = prefixNamespace() + key;
         }
+        //thinking:classify:packageName,12
         //thinking:classify:packageName,12,13,15
         if (keyUsed instanceof String) {
             //String[] keys = StringUtils.commaDelimitedListToStringArray((String) keyUsed);

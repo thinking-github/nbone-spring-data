@@ -64,12 +64,12 @@
         <repository>
             <id>releases</id>
             <name>Releases</name>
-            <url>http://120.131.11.58:7081/nexus/content/repositories/releases/</url>
+            <url>${maven.releases.url}</url>
         </repository>
         <snapshotRepository>
             <id>snapshots</id>
             <name>Snapshots</name>
-            <url>http://120.131.11.58:7081/nexus/content/repositories/snapshots/</url>
+            <url>${maven.snapshots.url}</url>
             <layout>default</layout>
         </snapshotRepository>
 
